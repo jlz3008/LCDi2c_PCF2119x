@@ -5,3 +5,5 @@ examples/LCD_Test/LCD_Test.ino
 examples/LCD_Test/Makefile
 README.md
 LICENSE
+docs/PCF2119X.pdf
+docs/BT21605.pdf
