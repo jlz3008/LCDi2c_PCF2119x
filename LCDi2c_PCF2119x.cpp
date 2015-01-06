@@ -53,6 +53,9 @@ LCDi2c_PCF2119x::LCDi2c_PCF2119x(uint8_t num_lines, uint8_t num_col, uint8_t i2c
     m_actual_blink = blkoff;
     m_actual_cursor = crsroff;
     m_actual_active = actvron;
+    m_actual_horizontal_orientation = left2right;
+    m_actual_vertical_orientation = top2bottom;
+
 }
 
 // [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
@@ -75,7 +78,7 @@ void LCDi2c_PCF2119x::init ()
     Wire.write(0x14); // command: Curs_disp_shift (move cursor, right)
 
     Wire.write(0x31); // command: functions (1x32, extended instruction set)
-    Wire.write(0x04); // command: Disp_conf (left-to-right, top-to-bottom)
+    Wire.write(0x04 | m_actual_horizontal_orientation | m_actual_vertical_orientation ); // command: Disp_conf
     Wire.write(0x10); // command: Temp_ctl (TC1=0, TC2=0) Display depended
     Wire.write(0x42); // command: HV_gen  (HV stage 3) Display depended
     Wire.write(0x9F); // command: VLCDset (set VLCD, store VA) Display depended
@@ -340,6 +343,31 @@ void LCDi2c_PCF2119x::setCursor(uint8_t line_num, uint8_t x)
 }
 
 //----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::leftToRight()
+{
+    m_actual_horizontal_orientation = left2right;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::rightToLeft()
+{
+    m_actual_horizontal_orientation = right2left;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::topToBottom()
+{
+    m_actual_vertical_orientation = top2bottom;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::bottomToTop()
+{
+    m_actual_vertical_orientation = bottom2top;
+    setDisplayConfig();
+}
+
+//----------------------------------------------------------------------------------
 // Private API
 //----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::setDisplayControl()
@@ -350,6 +378,19 @@ void LCDi2c_PCF2119x::setDisplayControl()
     Wire.endTransmission();
     delay(m_cmdDelay);
 }
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::setDisplayConfig()
+{
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x31); // command: functions (1x32, extended instruction set)
+    Wire.write(0x04 | m_actual_horizontal_orientation | m_actual_vertical_orientation ); // command: Disp_conf
+    Wire.write(0x30); // command: functions (1x32, extended instruction set)
+    Wire.endTransmission();
+    delay(m_cmdDelay);
+}
+
 //----------------------------------------------------------------------------------
 unsigned char LCDi2c_PCF2119x::ASCIItoLCD(unsigned char ch)
 {

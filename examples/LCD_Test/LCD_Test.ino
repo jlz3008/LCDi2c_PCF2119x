@@ -16,6 +16,7 @@
 #define VERSION "1.1"
 
 #include <inttypes.h>
+#include <Wire.h>
 
 #include <LCDi2c_PCF2119x.h>
 
@@ -30,7 +31,7 @@ void Count_Numbers();
 void Characters();
 void Every_Line(int lines);
 void Every_Pos(int lines,int cols);
-
+void Orientation_test();
 
 
 void setup()
@@ -75,6 +76,7 @@ void lcdtest_basic()
     Every_Pos(rows,cols);
     delay(1000);
 
+    Orientation_test();
 }
 
 void Cursor_Type()
@@ -177,4 +179,42 @@ void Every_Pos(int lines,int cols)
             lcd.print(i,DEC);
         }
     }
+}
+
+void Orientation_test()
+{
+    lcd.clear();
+    lcd.print("Normal orientation");
+    delay(5000);
+
+    lcd.off();
+    lcd.clear();
+    lcd.print("Right to left orientation");
+    lcd.rightToLeft();
+    lcd.on();
+    delay(5000);
+
+    lcd.off();
+    lcd.clear();
+    lcd.print("Normal orientation again");
+    lcd.leftToRight();
+    lcd.on();
+    delay(5000);
+
+    lcd.off();
+    lcd.clear();
+    lcd.print("Botom to top orientation");
+    lcd.bottomToTop();
+    lcd.on();
+    delay(5000);
+
+    lcd.off();
+    lcd.clear();
+    lcd.print("Bottom to top and Right to left");
+    lcd.rightToLeft();
+    lcd.on();
+    delay(5000);
+    lcd.clear();
+    lcd.leftToRight();
+    lcd.topToBottom();
 }
