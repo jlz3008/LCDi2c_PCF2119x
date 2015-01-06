@@ -58,18 +58,23 @@ public:
 	
 	void setCursor(uint8_t Line, uint8_t Col );
 
+
+    void normalHorizontalOrientation();
+    void normalVerticalOrientation();
+    void reverseHorizontalOrientation();
+    void reverseVerticalOrientation();
+
+
     void leftToRight();
     void rightToLeft();
-    void topToBottom();
-    void bottomToTop();
 
 private:
 
     enum blink_mode { blkoff = 0,blkon = 1} ;
     enum cursor_mode { crsroff = 0,crsron = 2};
     enum active_mode { actvoff = 0,actvron = 4};
-    enum horizontal_orientation { left2right = 0,right2left = 2};
-    enum vertical_orientation { top2bottom = 0,bottom2top = 1};
+    enum horizontal_orientation { horizontal_normal = 0,horizontal_reverse = 2};
+    enum vertical_orientation { vertical_normal = 0,vertical_reverse = 1};
 
     uint8_t m_num_lines;
     uint8_t m_num_col;

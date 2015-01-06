@@ -184,37 +184,39 @@ void Every_Pos(int lines,int cols)
 void Orientation_test()
 {
     lcd.clear();
+    lcd.normalHorizontalOrientation();
+    lcd.normalVerticalOrientation();
     lcd.print("Normal orientation");
     delay(5000);
 
     lcd.off();
     lcd.clear();
-    lcd.print("Right to left orientation");
-    lcd.rightToLeft();
+    lcd.print("Reverse horizontal orientation");
+    lcd.reverseHorizontalOrientation();
     lcd.on();
     delay(5000);
 
     lcd.off();
     lcd.clear();
     lcd.print("Normal orientation again");
-    lcd.leftToRight();
+    lcd.normalHorizontalOrientation();
     lcd.on();
     delay(5000);
 
     lcd.off();
     lcd.clear();
-    lcd.print("Botom to top orientation");
-    lcd.bottomToTop();
+    lcd.print("Reverse vertical orientation");
+    lcd.reverseVerticalOrientation();
     lcd.on();
     delay(5000);
 
     lcd.off();
     lcd.clear();
-    lcd.print("Bottom to top and Right to left");
-    lcd.rightToLeft();
+    lcd.print("Reverse Horizontal and Vertical");
+    lcd.reverseHorizontalOrientation();
     lcd.on();
     delay(5000);
+    lcd.normalHorizontalOrientation();
+    lcd.normalVerticalOrientation();
     lcd.clear();
-    lcd.leftToRight();
-    lcd.topToBottom();
 }

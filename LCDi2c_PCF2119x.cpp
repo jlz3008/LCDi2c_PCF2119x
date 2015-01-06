@@ -53,8 +53,8 @@ LCDi2c_PCF2119x::LCDi2c_PCF2119x(uint8_t num_lines, uint8_t num_col, uint8_t i2c
     m_actual_blink = blkoff;
     m_actual_cursor = crsroff;
     m_actual_active = actvron;
-    m_actual_horizontal_orientation = left2right;
-    m_actual_vertical_orientation = top2bottom;
+    m_actual_horizontal_orientation = horizontal_normal;
+    m_actual_vertical_orientation = vertical_normal;
 
 }
 
@@ -343,28 +343,36 @@ void LCDi2c_PCF2119x::setCursor(uint8_t line_num, uint8_t x)
 }
 
 //----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::normalHorizontalOrientation()
+{
+    m_actual_horizontal_orientation = horizontal_normal;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::reverseHorizontalOrientation()
+{
+    m_actual_horizontal_orientation = horizontal_reverse;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::normalVerticalOrientation()
+{
+    m_actual_vertical_orientation = vertical_normal;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::reverseVerticalOrientation()
+{
+    m_actual_vertical_orientation = vertical_reverse;
+    setDisplayConfig();
+}
+//----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::leftToRight()
 {
-    m_actual_horizontal_orientation = left2right;
-    setDisplayConfig();
 }
 //----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::rightToLeft()
 {
-    m_actual_horizontal_orientation = right2left;
-    setDisplayConfig();
-}
-//----------------------------------------------------------------------------------
-void LCDi2c_PCF2119x::topToBottom()
-{
-    m_actual_vertical_orientation = top2bottom;
-    setDisplayConfig();
-}
-//----------------------------------------------------------------------------------
-void LCDi2c_PCF2119x::bottomToTop()
-{
-    m_actual_vertical_orientation = bottom2top;
-    setDisplayConfig();
 }
 
 //----------------------------------------------------------------------------------
