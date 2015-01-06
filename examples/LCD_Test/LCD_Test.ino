@@ -15,7 +15,6 @@
 
 #define VERSION "1.1"
 
-#include <Wire.h>
 #include <inttypes.h>
 
 #include <LCDi2c_PCF2119x.h>
@@ -24,6 +23,14 @@ LCDi2c_PCF2119x lcd = LCDi2c_PCF2119x(2,16,0x3B);
 
 uint8_t rows = 2;
 uint8_t cols = 16;
+
+void lcdtest_basic();
+void Cursor_Type();
+void Count_Numbers();
+void Characters();
+void Every_Line(int lines);
+void Every_Pos(int lines,int cols);
+
 
 
 void setup()
@@ -114,7 +121,6 @@ void Count_Numbers()
 void Characters()
 {
     int  chartoprint=48;
-    char a;
 
     lcd.clear();
 
@@ -123,7 +129,6 @@ void Characters()
         for(int j=0 ; j < cols ; j++)
         {
             lcd.setCursor(i,j);
-            a = char(chartoprint);
             lcd.print(char(chartoprint));
             chartoprint++;
             if(chartoprint == 127)

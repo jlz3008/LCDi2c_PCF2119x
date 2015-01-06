@@ -9,6 +9,18 @@ LCD tested
 ==========
 - BT21605 
 
+
+Workflow
+========
+
+I don't like Arduino IDE. I love QtCreator, so this repo includes some project files
+to work with QtCreator and Makefiles to compiling examples inside QtCreator. To do this,
+you must install arduino-mk package on your development box.
+See http://hardwarefun.com/tutorials/compiling-arduino-sketches-using-makefile
+See https://github.com/sudar/Arduino-Makefile
+
+You can always use the Arduino IDE if you want.
+
 TODO
 ====
 - Add custom character support
