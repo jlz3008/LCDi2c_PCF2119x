@@ -20,7 +20,7 @@
 
 #include <LCDi2c_PCF2119x.h>
 
-LCDi2c_PCF2119x lcd = LCDi2c_PCF2119x(2,16,0x3B);
+LCDi2c_PCF2119x lcd = LCDi2c_PCF2119x(0x3B,16,2);
 
 uint8_t rows = 2;
 uint8_t cols = 16;
@@ -32,23 +32,28 @@ void Characters();
 void Every_Line(int lines);
 void Every_Pos(int lines,int cols);
 void Orientation_test();
+void Autoscroll_test();
+void ShiftAndCursorMove_test();
+void RightAndLeft_test();
 
 
 void setup()
 {
+#ifdef DEBUG
+    Serial.begin(9600);  // start serial for output for debug
+    Serial.println("Start");
+#endif
+
     lcd.init();                          // Init the display, clears the display
 
     lcd.print("Hello World!");       // Classic Hello World!
-
     delay(1000);
 }
-
 
 void loop()
 {
     lcdtest_basic();
 }
-
 
 void lcdtest_basic()
 {
@@ -77,27 +82,34 @@ void lcdtest_basic()
     delay(1000);
 
     Orientation_test();
+
+    Autoscroll_test();
+
+    ShiftAndCursorMove_test();
+
+    RightAndLeft_test();
+
 }
 
 void Cursor_Type()
 {
     lcd.setCursor(0,0);
     lcd.print("Underline Cursor");
-    lcd.setCursor(1,0);
-    lcd.cursor_on();
+    lcd.setCursor(0,1);
+    lcd.cursor();
     delay(1000);
-    lcd.cursor_off();
+    lcd.noCursor();
     lcd.setCursor(0,0);
 
     lcd.print("Block Cursor    ");
-    lcd.setCursor(1,0);
-    lcd.blink_on();
+    lcd.setCursor(0,1);
+    lcd.blink();
     delay(1000);
-    lcd.blink_off();
+    lcd.noBlink();
     lcd.setCursor(0,0);
 
     lcd.print("No Cursor      ");
-    lcd.setCursor(1,0);
+    lcd.setCursor(0,1);
     delay(1000);
 }
 
@@ -108,11 +120,11 @@ void Count_Numbers()
 
     for (int i=0;i<255;i++)
     {
-        lcd.setCursor(1,0);
+        lcd.setCursor(0,1);
 
         lcd.print(i,DEC);
 
-        lcd.setCursor(1,7);
+        lcd.setCursor(7,1);
 
         lcd.print(i,BIN);
 
@@ -130,7 +142,7 @@ void Characters()
     {
         for(int j=0 ; j < cols ; j++)
         {
-            lcd.setCursor(i,j);
+            lcd.setCursor(j,i);
             lcd.print(char(chartoprint));
             chartoprint++;
             if(chartoprint == 127)
@@ -146,10 +158,10 @@ void Fancy_Clear()
     {
         for(int j=0 ; j < cols/2 ; j++)
         {
-            lcd.setCursor(i,j);
+            lcd.setCursor(j,i);
             lcd.print(" ");
 
-            lcd.setCursor(i, cols - j);
+            lcd.setCursor(cols - i, j);
             lcd.print(" ");
         }
         //delay(10);
@@ -161,7 +173,7 @@ void Every_Line(int lines)
     lcd.clear();
     for(int i=0 ; i < lines ; i++)
     {
-        lcd.setCursor(i,0);
+        lcd.setCursor(0,i);
         lcd.print("Line : ");
         lcd.print(i,DEC);
     }
@@ -175,7 +187,7 @@ void Every_Pos(int lines,int cols)
     {
         for(int j=0 ; j< cols ; j++)
         {
-            lcd.setCursor(i,j);
+            lcd.setCursor(j,i);
             lcd.print(i,DEC);
         }
     }
@@ -187,36 +199,172 @@ void Orientation_test()
     lcd.normalHorizontalOrientation();
     lcd.normalVerticalOrientation();
     lcd.print("Normal orientation");
-    delay(5000);
+    delay(2000);
 
-    lcd.off();
+    lcd.noDisplay();
     lcd.clear();
     lcd.print("Reverse horizontal orientation");
     lcd.reverseHorizontalOrientation();
-    lcd.on();
-    delay(5000);
+    lcd.display();
+    delay(2000);
 
-    lcd.off();
+    lcd.noDisplay();
     lcd.clear();
     lcd.print("Normal orientation again");
     lcd.normalHorizontalOrientation();
-    lcd.on();
-    delay(5000);
+    lcd.display();
+    delay(2000);
 
-    lcd.off();
+    lcd.noDisplay();
     lcd.clear();
     lcd.print("Reverse vertical orientation");
     lcd.reverseVerticalOrientation();
-    lcd.on();
-    delay(5000);
+    lcd.display();
+    delay(2000);
 
-    lcd.off();
+    lcd.noDisplay();
     lcd.clear();
     lcd.print("Reverse Horizontal and Vertical");
     lcd.reverseHorizontalOrientation();
-    lcd.on();
-    delay(5000);
+    lcd.display();
+    delay(2000);
+
     lcd.normalHorizontalOrientation();
     lcd.normalVerticalOrientation();
     lcd.clear();
 }
+
+
+void Autoscroll_test()
+{
+    lcd.blink();
+
+    lcd.print("noAutoscroll");
+    for(char i='A';i<'J';i++)
+    {
+        lcd.print(i);
+        delay(300);
+    }
+
+    lcd.autoscroll();
+
+
+    lcd.print("-A-");
+
+    for(char i='a';i<'z';i++)
+    {
+        lcd.print(i);
+        delay(300);
+    }
+
+    for(char i='A';i<'Z';i++)
+    {
+        lcd.print(i);
+        delay(300);
+    }
+
+    for(char i='0';i<'9';i++)
+    {
+        lcd.print(i);
+        delay(300);
+    }
+    delay(2000);
+
+    lcd.clear();
+    lcd.noAutoscroll();
+    lcd.print("noAutoscroll again");
+
+    for(char i='A';i<'Z';i++)
+    {
+        lcd.print(i);
+        delay(200);
+    }
+
+    lcd.noBlink();
+}
+
+void ShiftAndCursorMove_test()
+{
+    lcd.blink();
+    lcd.clear();
+
+    lcd.print("Hello again ");
+
+    delay(1000);
+
+    for(int i=0;i<5;i++)
+    {
+        lcd.scrollDisplayRight();
+        delay(300);
+    }
+
+    lcd.print("and again");
+    delay(1000);
+
+    for(int i=0;i<5;i++)
+    {
+        lcd.cursorLeft();
+        delay(300);
+    }
+
+    lcd.print("overwrite");
+    delay(1000);
+
+    for(int i=0;i<5;i++)
+    {
+        lcd.scrollDisplayLeft();
+        delay(300);
+    }
+    delay(1000);
+
+    for(int i=0;i<4;i++)
+    {
+        lcd.cursorRight();
+        delay(300);
+    }
+
+    delay(1000);
+
+    lcd.print("end");
+    delay(1000);
+
+    lcd.noBlink();
+
+}
+
+void RightAndLeft_test()
+{
+    lcd.blink();
+    lcd.clear();
+
+    for(char i='A';i<'J';i++)
+    {
+        lcd.print(i);
+        delay(500);
+    }
+
+    lcd.cursorLeft();
+    lcd.rightToLeft();
+
+    for(char i='i';i>='a';i--)
+    {
+        lcd.print(i);
+        delay(500);
+    }
+
+    lcd.cursorRight();
+    lcd.leftToRight();
+
+    for(char i='A';i<'J';i++)
+    {
+        lcd.print(i);
+        delay(500);
+    }
+
+
+
+
+    lcd.noBlink();
+
+}
+

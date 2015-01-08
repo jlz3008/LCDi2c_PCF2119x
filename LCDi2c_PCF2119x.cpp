@@ -6,8 +6,9 @@
 */
 // [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 // []
-// []	Implement LCD API Version 1.0 4-3-2009 by dale@wentztech.com
+// []	Implement LCD LiquidCrystall API Version
 // []   for PCF2119x controller LCD based
+// []   LCD API 1.0 4-3-2009 by dale@wentztech.com compliant
 // []
 // []   This library is based on a TontonJules work
 // []   http://forum.arduino.cc/index.php?topic=33427.0
@@ -24,22 +25,8 @@
   
 #include "LCDi2c_PCF2119x.h"
   
-
-#define CMDDELAY   165        // Default Delay to wait after sending commands;
-#define POSDELAY   10         // Long delay required by Position command
-#define CHARDELAY  0          // Default char delay.
-
-
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Class Constructor 
-// []
-// []	num_lines = 1-4
-// []   num_col = 1-80
-// []  
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-LCDi2c_PCF2119x::LCDi2c_PCF2119x(uint8_t num_lines, uint8_t num_col, uint8_t i2c_addr, char charset)
+//----------------------------------------------------------------------------------
+LCDi2c_PCF2119x::LCDi2c_PCF2119x(uint8_t i2c_addr, uint8_t num_col, uint8_t num_lines, char charset)
 {
     Wire.begin();
 
@@ -48,33 +35,22 @@ LCDi2c_PCF2119x::LCDi2c_PCF2119x(uint8_t num_lines, uint8_t num_col, uint8_t i2c
     m_i2caddress = i2c_addr;
     m_charset = charset;
 
-    m_cmdDelay = CMDDELAY;
-    m_charDelay = CHARDELAY;
     m_actual_blink = blkoff;
     m_actual_cursor = crsroff;
     m_actual_active = actvron;
     m_actual_horizontal_orientation = horizontal_normal;
     m_actual_vertical_orientation = vertical_normal;
-
+    m_actual_scroll = scrolloff;
+    m_actual_addr_move = addr_inc;
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	initiatize lcd after a short pause
-// []
-// []	
-// []   Put the display in some kind of known mode
-// []   Put the cursor at 0,0
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-
-void LCDi2c_PCF2119x::init ()
+//----------------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::init()
 {
     Wire.beginTransmission(m_i2caddress);
     Wire.write(0x00); // control byte
     Wire.write(0x30); // command: functions (1x32, basic set)
-    Wire.write(0x06); // command: entry mode (increment, no shift)
+    Wire.write(0x04 | m_actual_addr_move | m_actual_scroll ); // command: entry mode (increment, no shift)
     Wire.write(0x14); // command: Curs_disp_shift (move cursor, right)
 
     Wire.write(0x31); // command: functions (1x32, extended instruction set)
@@ -87,51 +63,31 @@ void LCDi2c_PCF2119x::init ()
     Wire.write(0x80); // command: DDRAM address = 0x00
     Wire.write(0x02); // command: return home
     Wire.endTransmission();
-    delay(m_cmdDelay);
+    waitBusy();
 
     clear();
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Override the default delays used to send commands to the display
-// []
-// []	The default values are set by the library
-// []   this allows the programer to take into account code delays
-// []   and speed things up.
-// []   
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::setDelay (int cmdDelay,int charDelay)
+//----------------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::begin(int cols,int rows)
 {
-    m_cmdDelay = cmdDelay;
-    m_charDelay = charDelay;
+    m_num_col   = cols;
+    m_num_lines = rows;
+    init();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []   Send a command to the display. 
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
+//----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::command(uint8_t value)
 {
     Wire.beginTransmission(m_i2caddress);
     Wire.write(0x00); // control byte
     Wire.write(value); // command:
     Wire.endTransmission();
-    delay(m_cmdDelay);
+    waitBusy();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []   Send a command to the display. 
-// []
-// []	This is also used by the print, and println
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
+//----------------------------------------------------------------------------------
 size_t LCDi2c_PCF2119x::write(uint8_t value)
 {
 
@@ -139,21 +95,16 @@ size_t LCDi2c_PCF2119x::write(uint8_t value)
     Wire.write(0x40);
     Wire.write(ASCIItoLCD(value));
     Wire.endTransmission();
-    delay(m_charDelay);
+    waitBusy();
     return(1);
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Clear the display, and put cursor at 0,0 
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
+//----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::clear()
 {
     if(m_charset == 'R')
     {
-/* ======================================================================================
+/* ==================[From datasheet]====================================================
         When using character set ‘R’, the following alternative instruction set has to be used:
         1. Switch display off (Display_ctl, bit D = 0).
         2. Write a blank pattern into all DDRAM addresses (Write_data).
@@ -161,185 +112,283 @@ void LCDi2c_PCF2119x::clear()
     ======================================================================================   */
         active_mode last_active_mode = m_actual_active;
 
-        off();
+        noDisplay();
 
+// Now we erase all 80 characters area because the no visible area
+// is used on autoscroll mode
+// Maximun bytes on a transmision = 32 so we trunk on 3 blocks to write 80 bytes
         Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x00); // control byte
-        Wire.write(0x80); // Set_DDRAM
-        Wire.endTransmission();
+        Wire.write(0x80); // control byte. A control byte after next instruction
+        Wire.write(0x80); // Set_DDRAM = 0x00
+        Wire.write(0x40); // control byte Select Data Register
 
-        delay(m_charDelay);
-
-        Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x40); // control byte Write Data Register
-        for(int i=0;i<31;i++)
+        for(int i=0;i<0x1B;i++)
             Wire.write(0x91); // White character
         Wire.endTransmission();
 
-        delay(m_charDelay);
-
-// I don't know why but last character is not write on 1 line mode.
+        waitBusy();
         Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x00); // control byte
-        Wire.write(0x9F); // Set_DDRAM
+        Wire.write(0x80); // control byte. A control byte after next instruction
+        Wire.write(0x9B); // Set_DDRAM = 0x1B
+        Wire.write(0x40); // control byte Select Data Register
+
+        for(int i=0;i<0x1B;i++)
+            Wire.write(0x91); // White character
         Wire.endTransmission();
 
-        delay(m_charDelay);
-
+        waitBusy();
         Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x40); // control byte Write Data Register
-        Wire.write(0x91); // White character
+        Wire.write(0x80); // control byte. A control byte after next instruction
+        Wire.write(0xB6); // Set_DDRAM = 0x26
+        Wire.write(0x40); // control byte Select Data Register
+
+        for(int i=0;i<0x1A;i++)
+            Wire.write(0x91); // White character
         Wire.endTransmission();
 
-        delay(m_charDelay);
+        waitBusy();
 
-/* ========== 2 line mode ===========================
-        Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x40); // control byte Write Data Register
-        for(int i=0;i<16;i++)
-            Wire.write(0x91);
-        Wire.endTransmission();
-
-        delay(m_charDelay);
-
-        Wire.beginTransmission(m_i2caddress );
-        Wire.write(0x00); // control byte
-        Wire.write(0xC0); // Set_DDRAM
-        Wire.endTransmission();
-
-        delay(m_charDelay);
-
-        Wire.beginTransmission(m_i2caddress);
-        Wire.write(0x40); // control byte Write Data Register
-        for(int i=0;i<16;i++)
-            Wire.write(0x91);
-        Wire.endTransmission();
-
-        delay(m_charDelay);
-*/
         home();
+
         if(last_active_mode == actvron)
-            on();
+            display();
     }
     else
         command(1); // Clear_display
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Home to custor to 0,0
-// []
-// []	Do not disturb data on the displayClear the display
-// []
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
+//----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::home()
 {
     command(2); // Return_home
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn on the display
-// []
-// []	Depending on the display, might just turn backlighting on
-// []
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::on()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::display()
 {
     m_actual_active = actvron;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn off the display
-// []
-// []	Depending on the display, might just turn backlighting off
-// []
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::off()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::noDisplay()
 {
     m_actual_active = actvoff;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn on the underline cursor
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::cursor_on()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::cursor()
 {
     m_actual_cursor = crsron;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn off the underline cursor
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::cursor_off()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::noCursor()
 {
     m_actual_cursor = crsroff;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn on the blinking block cursor
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::blink_on()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::blink()
 {
     m_actual_blink = blkon;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Turn off the blinking block cursor
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-void LCDi2c_PCF2119x::blink_off()
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::noBlink()
 {
     m_actual_blink = blkoff;
     setDisplayControl();
 }
 
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Position the cursor to position line,column
-// []
-// []	line is 0 - Max Display lines
-// []	column 0 - Max Display Width
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-
-void LCDi2c_PCF2119x::setCursor(uint8_t line_num, uint8_t x)
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::setCursor(uint8_t col, uint8_t row)
 {
     Wire.beginTransmission(m_i2caddress);
     Wire.write(0x00);
-    Wire.write(0x80+16*line_num+x);
-/* ========== 2 line mode
-    if (line_num==0)
-       Wire.write(0x80+x);
-    else
-       Wire.write(0xC0+x);
-====================*/
+    Wire.write(0x80+16*row+col);
     Wire.endTransmission();
-    delay(POSDELAY);
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::autoscroll()
+{
+// scroll area is all 80 character buffer not only visible area
+    m_actual_scroll = scrollon;
+    setEntryMode();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::noAutoscroll()
+{
+    m_actual_scroll = scrolloff;
+    setEntryMode();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::leftToRight()
+{
+    m_actual_addr_move = addr_inc;
+    setEntryMode();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::rightToLeft()
+{
+    m_actual_addr_move = addr_dec;
+    setEntryMode();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::scrollDisplayLeft()
+{
+// Curs_disp_shift on shift operation don't modify either address pointer or data memory
+// only change LCD internal index visible area.
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x18); // command: Curs_disp_shift shift to left
+    Wire.endTransmission();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::scrollDisplayRight()
+{
+// Curs_disp_shift on shift operation don't modify either address pointer or data memory
+// only change internal index to visible area.
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x1C); // command: Curs_disp_shift shift to right
+    Wire.endTransmission();
+    waitBusy();
+}
+
+// Only for debug
+#ifdef DEBUG
+//----------------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::dump()
+{
+// Backup address point
+    uint8_t addpnt = getAddressPoint();
+
+    waitBusy();
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x80); // control byte. A control byte after next instruction
+    Wire.write(0x80); // command: DDRAM address = 0x00
+    Wire.write(0x40); // control byte Select Data Register
+    Wire.endTransmission();
+
+    Wire.requestFrom(m_i2caddress, uint8_t( 32)); // maximun transmission 32 bytes
+    for(int i=1;Wire.available();i++)
+    {
+        char c = Wire.read();
+        Serial.print(uint8_t(c),HEX);
+        if(i%16 == 0)
+            Serial.println("");
+        else
+            Serial.print(" ");
+    }
+
+    waitBusy();
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x80); // control byte. A control byte after next instruction
+    Wire.write(0xA0); // command: DDRAM address = 0x20
+    Wire.write(0x40); // control byte Select Data Register
+    Wire.endTransmission();
+
+    Wire.requestFrom(m_i2caddress, uint8_t( 32));
+    for(int i=1;Wire.available();i++)
+    {
+        char c = Wire.read();
+        Serial.print(uint8_t(c),HEX);
+        if(i%16 == 0)
+            Serial.println("");
+        else
+            Serial.print(" ");
+    }
+
+    waitBusy();
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x80); // control byte. A control byte after next instruction
+    Wire.write(0xC0); // command: DDRAM address = 0x40
+    Wire.write(0x40); // control byte Select Data Register
+    Wire.endTransmission();
+
+    Wire.requestFrom(m_i2caddress, uint8_t( 16));
+    for(int i=1;Wire.available();i++)    // display turn around 80 bytes DDRAM
+    {                                    // so we only read 16 bytes
+        char c = Wire.read();
+        Serial.print(uint8_t(c),HEX);
+        if(i%16 == 0)
+            Serial.println("");
+        else
+            Serial.print(" ");
+    }
+
+// Restore address point
+    setAddressPoint(addpnt);
+}
+#endif
+//----------------------------------------------------------------------------------
+// Specific controller API
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::setAddressPoint(uint8_t newAddr)
+{
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x80 | (newAddr & 0x7F)); // command: DDRAM address = newAddr
+    Wire.endTransmission();
+}
+
+//----------------------------------------------------------------------------------------
+uint8_t LCDi2c_PCF2119x::getAddressPoint()
+{
+    uint8_t Result=0xFF;
+
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte Select Instruction Register
+    Wire.endTransmission();
+
+    Wire.requestFrom(m_i2caddress, uint8_t( 1));
+    if(Wire.available())
+    {
+        Result = Wire.read() & 0x7F;    // receive a byte as character
+    }
+
+    return(Result);
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::cursorLeft()
+{
+// Curs_disp_shift on move cursor operation  modify address pointer to correspond to the
+// character under cursor.
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x10); // command: Curs_disp_shift move cursor to left
+    Wire.endTransmission();
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::cursorRight()
+{
+// Curs_disp_shift on move cursor operation  modify address pointer to correspond to the
+// character under cursor.
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x14); // command: Curs_disp_shift move cursor to right
+    Wire.endTransmission();
+    waitBusy();
 }
 
 //----------------------------------------------------------------------------------
@@ -366,17 +415,54 @@ void LCDi2c_PCF2119x::reverseVerticalOrientation()
     m_actual_vertical_orientation = vertical_reverse;
     setDisplayConfig();
 }
-//----------------------------------------------------------------------------------
-void LCDi2c_PCF2119x::leftToRight()
-{
-}
-//----------------------------------------------------------------------------------
-void LCDi2c_PCF2119x::rightToLeft()
-{
-}
 
 //----------------------------------------------------------------------------------
 // Private API
+//----------------------------------------------------------------------------------------
+uint8_t LCDi2c_PCF2119x::isBusy()
+{
+    uint8_t Result = 0x80;
+
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte select Instruction Register
+    Wire.endTransmission();
+
+    Wire.requestFrom(m_i2caddress, uint8_t( 1));
+    if(Wire.available())
+    {
+        Result = Wire.read() & 0x80;
+    }
+    return(Result);
+}
+
+//----------------------------------------------------------------------------------------
+uint8_t LCDi2c_PCF2119x::waitBusy()
+{
+#define MAXRETRY    10
+    int i;
+    uint8_t Result;
+
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte select Instruction Register
+    Wire.endTransmission();
+
+    for(i = 0,Result = 0x80 ;
+        Result && (i < MAXRETRY) ;
+        i++)
+    {
+        Wire.requestFrom(m_i2caddress, uint8_t( 1));
+        if(Wire.available())
+        {
+            Result = Wire.read() & 0x80;
+#ifdef DEBUG
+            if( Result & 0x80)
+                Serial.println("Busy");
+#endif
+        }
+    }
+    return(Result);
+}
+
 //----------------------------------------------------------------------------------
 void LCDi2c_PCF2119x::setDisplayControl()
 {
@@ -384,7 +470,7 @@ void LCDi2c_PCF2119x::setDisplayControl()
     Wire.write(0x00); // control byte
     Wire.write(0x08 | m_actual_active | m_actual_cursor | m_actual_blink); // command: display control (display on, cursor off, blink off)
     Wire.endTransmission();
-    delay(m_cmdDelay);
+    waitBusy();
 }
 
 //----------------------------------------------------------------------------------
@@ -396,12 +482,23 @@ void LCDi2c_PCF2119x::setDisplayConfig()
     Wire.write(0x04 | m_actual_horizontal_orientation | m_actual_vertical_orientation ); // command: Disp_conf
     Wire.write(0x30); // command: functions (1x32, extended instruction set)
     Wire.endTransmission();
-    delay(m_cmdDelay);
+    waitBusy();
+}
+
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::setEntryMode()
+{
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+    Wire.write(0x04 | m_actual_scroll | m_actual_addr_move); // command: entry mode (increment, no shift)
+    Wire.endTransmission();
+    waitBusy();
 }
 
 //----------------------------------------------------------------------------------
 unsigned char LCDi2c_PCF2119x::ASCIItoLCD(unsigned char ch)
 {
+    /// @todo revise for others charsets
    unsigned char c=ch;
    if(m_charset == 'R')
    {
@@ -411,60 +508,3 @@ unsigned char LCDi2c_PCF2119x::ASCIItoLCD(unsigned char ch)
    return c;
 }
 
-//----------------------------------------------------------------------------------
-// Expanded API not implemented yet
-//----------------------------------------------------------------------------------
-#ifdef _LCDEXPANDED
-
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Return the status of the display
-// []
-// []	Does nothing on this display
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]	
-
-uint8_t LCDi2c_PCF2119x::status()
-{
-	return 0;
-}
-
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Read data from keypad
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-uint8_t LCDi2c_PCF2119x::keypad ()
-{
-
-	
-}
-
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-// []
-// []	Load data for a custom character
-// []
-// []	Char = custom character number 0-7
-// []	Row is array of chars containing bytes 0-7
-// []
-// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-
-
-void LCDi2c_PCF2119x::load_custom_character(uint8_t char_num, uint8_t *rows)
-{
-
-
-}
-
-void LCDi2c_PCF2119x::setBacklight(uint8_t new_val)
-{
-	
-}
-
-void LCDi2c_PCF2119x::setContrast(uint8_t new_val)
-{
-	
-}
-
-#endif
