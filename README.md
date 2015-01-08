@@ -24,6 +24,5 @@ You can always use the Arduino IDE if you want.
 
 TODO
 ====
-- Add custom character support
-- Add support other charset.
-- Add EXPANDED functions
+All funcionality of BT21605 implemented. It's posible other LCD have additional
+funcionality but I can't test it.
