@@ -272,6 +272,36 @@ void LCDi2c_PCF2119x::scrollDisplayRight()
     waitBusy();
 }
 
+//----------------------------------------------------------------------------------
+void LCDi2c_PCF2119x::createChar(uint8_t char_num, uint8_t *rows)
+{
+    char_num &=0x0F;
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x00); // control byte
+
+    /* ============= From Datasheet ============================
+     * Only bit 0 to bit 5 of the CGRAM address are set by the Set_CGRAM command.
+     * Bit 6 can be set using the Set_DDRAM command in the valid address range or
+     * by using the auto-increment feature during CGRAM write.
+     ===========================================================*/
+
+    if(char_num >= 8)
+        Wire.write(0x80 | (char_num  * 8)); // command: set bit6 CGRAM Address via set set_DDRAM command
+
+    Wire.write(0x40 | ((char_num  * 8) & B00111111)); // command: set CGRAM Address
+
+    Wire.endTransmission();
+
+    Wire.beginTransmission(m_i2caddress);
+    Wire.write(0x40); // control byte select data register
+    for(int i=0;i<8;i++)
+        Wire.write(rows[i]);
+    Wire.endTransmission();
+
+    waitBusy();
+
+}
+
 // Only for debug
 #ifdef DEBUG
 //----------------------------------------------------------------------------------------
@@ -500,7 +530,7 @@ unsigned char LCDi2c_PCF2119x::ASCIItoLCD(unsigned char ch)
 {
     /// @todo revise for others charsets
    unsigned char c=ch;
-   if(m_charset == 'R')
+   if(m_charset == 'R' || m_charset == 'F')
    {
        if ( ((ch >= 0x20) && (ch <= 0x3F)) || ((ch >= 0x41) && (ch <= 0x5A)) || ((ch >= 0x61) && (ch <= 0x7A)) )
            c = 0x80 + ch;

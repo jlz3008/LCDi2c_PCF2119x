@@ -66,7 +66,7 @@ public:
     void scrollDisplayLeft();
     void scrollDisplayRight();
 
-    void createChar(uint8_t char_num, uint8_t *rows) { } // not implemented yet
+    void createChar(uint8_t char_num, uint8_t *rows);
 
 //----------------------------------------------------------------------------------
 // LCD API 1.0 4-3-2009 by dale@wentztech.com

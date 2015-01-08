@@ -35,7 +35,53 @@ void Orientation_test();
 void Autoscroll_test();
 void ShiftAndCursorMove_test();
 void RightAndLeft_test();
+void CustomChars_test();
 
+uint8_t euro[]    = {0x06,0x09,0x08,0x1e,0x1e,0x08,0x09,0x06};
+
+uint8_t ugly[] = {
+  B00000,
+  B10001,
+  B00000,
+  B00000,
+  B01110,
+  B10001,
+  B00000,
+  B00000
+};
+
+uint8_t smiley[] = {
+  B00000,
+  B10001,
+  B00000,
+  B00000,
+  B10001,
+  B01110,
+  B00000,
+  B00000
+};
+
+uint8_t sandclock[] = {
+  B11111,
+  B10001,
+  B01110,
+  B00100,
+  B01010,
+  B10111,
+  B11111,
+  B00000
+};
+
+uint8_t packman[] = {
+  B01100,
+  B11110,
+  B11000,
+  B10000,
+  B11000,
+  B11110,
+  B01100,
+  B00000
+};
 
 void setup()
 {
@@ -43,6 +89,12 @@ void setup()
     Serial.begin(9600);  // start serial for output for debug
     Serial.println("Start");
 #endif
+
+    lcd.createChar(0,euro); // createChar must be called before init display
+    lcd.createChar(1,smiley); // This LCD have 5x8 cell but last row is the cursor row
+    lcd.createChar(2,ugly);
+    lcd.createChar(8,sandclock);
+    lcd.createChar(15,packman);
 
     lcd.init();                          // Init the display, clears the display
 
@@ -89,6 +141,7 @@ void lcdtest_basic()
 
     RightAndLeft_test();
 
+    CustomChars_test();
 }
 
 void Cursor_Type()
@@ -248,7 +301,6 @@ void Autoscroll_test()
 
     lcd.autoscroll();
 
-
     lcd.print("-A-");
 
     for(char i='a';i<'z';i++)
@@ -361,10 +413,21 @@ void RightAndLeft_test()
         delay(500);
     }
 
-
-
-
     lcd.noBlink();
 
+}
+
+void CustomChars_test()
+{
+    lcd.clear();
+    lcd.print("Custom chars");
+    lcd.setCursor(0,1);
+
+    lcd.print(char(8));
+    lcd.print(char(0));
+    lcd.print(char(1));
+    lcd.print(char(2));
+    lcd.print(char(15));
+    delay(5000);
 }
 
